@@ -24,6 +24,12 @@
 #' the resulting Word document with the Table should have. Optional argument.
 #' @param verbose TRUE or FALSE indicating whether matching information should
 #' be printed to the console.
+#' @param covariates_ordinal A character vector specifying the variable names
+#' of the ordinal variables for which the descriptive statistics should be
+#' computed.
+#' @param covariates_nominal A character vector specifying the variable names
+#' of the nominal variables for which the descriptive statistics should be
+#' computed.
 #'
 #' @author Julian Urban
 #'
@@ -36,6 +42,7 @@
 #' @importFrom flextable autofit
 #' @importFrom flextable save_as_docx
 #' @importFrom rlang sym
+#' @importFrom tibble as_tibble
 #'
 #' @return A table of descriptive statistics and pairwise effects for pre- or
 #' post-matching samples.
@@ -43,7 +50,7 @@
 #'
 #' @examples
 #' # Defining covariates
-#' covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic", "gender")
+#' covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic")
 #'
 #' # Estimating pre-matching descriptive statistics and pairwise effects using
 #' # the data set 'MAGMA_sim_data'
@@ -51,6 +58,8 @@
 #' # giftedness support yes or no)
 #' MAGMA_desc(Data = MAGMA_sim_data,
 #'            covariates = covariates_gifted,
+#'            covariates_ordinal = "teacher_ability_rating",
+#'            covariates_nominal = "gender",
 #'            group =  "gifted_support")
 #'
 #'
@@ -61,6 +70,8 @@
 #' # Estimating statistics for 100 cases per group
 #' MAGMA_desc(Data = MAGMA_sim_data,
 #'            covariates = covariates_gifted,
+#'            covariates_ordinal = "teacher_ability_rating",
+#'            covariates_nominal = "gender",
 #'            group =  "gifted_support",
 #'            step_num = 100,
 #'            step_var = "step_gifted")
@@ -71,7 +82,9 @@ MAGMA_desc <- function(Data,
                        step_num = NULL,
                        step_var = NULL,
                        filename = NULL,
-                       verbose = TRUE) {
+                       verbose = TRUE,
+                       covariates_ordinal = NULL,
+                       covariates_nominal = NULL) {
   if (!is.data.frame(Data) && !tibble::is_tibble(Data)) {
     stop("Class data needs to be data frame, or tibble!")
   }
@@ -82,6 +95,33 @@ MAGMA_desc <- function(Data,
 
   if(!is.character(covariates)) {
     stop("covariates needs to be a character or a character vector!")
+  }
+  
+  if(!is.character(covariates_ordinal) & !is.null(covariates_ordinal)) {
+    stop("covariates_ordinal needs to be a character or a character vector!")
+  }
+  
+if(is.character(covariates_ordinal)) {
+  if(sum(covariates_ordinal %in% covariates) > 0) {
+    stop("Some variables are specified as covariates and covariates_ordinal. You can only specify each variable to one of theese arguments!")
+  }
+}
+  
+  if(!is.character(covariates_nominal) & !is.null(covariates_nominal)) {
+    stop("covariates_nominal needs to be a character or a character vector!")
+  }
+  
+  if(is.character(covariates_nominal)) {
+    if(sum(covariates_nominal %in% covariates) > 0) {
+      stop("Some variables are specified as covariates and covariates_nominal You can only specify each variable to one of theese arguments!")
+    }
+  }
+  
+  if(is.character(covariates_nominal) & is.character(covariates_ordinal))  {
+    if(sum(covariates_nominal %in% covariates_ordinal) > 0) {
+      stop("Some variables are specified as covariates_ordinal and covariates_nominal. You can only specify each variable to one of theese arguments!")
+    }
+    
   }
 
   if(!is.numeric(step_num) & !is.null(step_num)) {
@@ -130,7 +170,8 @@ MAGMA_desc <- function(Data,
     psych::describe() %>%
     tibble::as_tibble() %>%
     round(digits = 2)
-  descs_overall <- descs_overall[c("n", "mean", "sd")]
+  descs_overall <- descs_overall[c("n", "mean", "sd")] %>%
+    purrr::set_names(c("n", "central_tendency", "dispersion"))
 
   descs_group <- Data %>%
     dplyr::select(tidyselect::all_of(group),
@@ -145,7 +186,7 @@ MAGMA_desc <- function(Data,
     do.call(what = cbind.data.frame) %>%
     purrr::set_names(paste(rep(
       seq(1:nrow(unique(Data[group]))) , each = 3),
-      c("n", "mean", "sd")))
+      c("n", "central_tendency", "dispersion")))
 
   if(ncol(descs_group) == 6) {
     index_matrix <- matrix(data = c("1", "2"),
@@ -163,10 +204,30 @@ MAGMA_desc <- function(Data,
                                     cohen_d,
                                     Data = descs_group) %>%
     round(digits = 2)
-
-  stats_overall <- cbind(descs_overall,
+  
+stats_overall <- cbind(descs_overall,
                          descs_group,
                          effects_groups)
+
+if(!is.null(covariates_ordinal)) {
+  rows_temp <- rownames(stats_overall)
+    stats_overall <- rbind(stats_overall,
+                           row_ordinal(Data, group, covariates_ordinal) %>%
+                             tibble::as_tibble() %>%
+                             purrr::set_names(colnames(stats_overall))
+                           )
+    rownames(stats_overall) <- c(rows_temp, covariates_ordinal)
+}
+
+if(!is.null(covariates_nominal)) {
+  rows_temp <- rownames(stats_overall)
+  stats_overall <- rbind(stats_overall,
+                         row_nominal(Data, group, covariates_nominal) %>%
+                           tibble::as_tibble() %>%
+                           purrr::set_names(colnames(stats_overall))
+  )
+  rownames(stats_overall) <- c(rows_temp, covariates_nominal)
+}
 
   if(!is.null(filename)) {
     stats_overall %>%
@@ -213,15 +274,15 @@ cohen_d <- function(Data, index_1, index_2) {
     dplyr::select(tidyselect::starts_with(index_1),
                   tidyselect::starts_with(index_2))
   
-  Mean_diff <- Data_temp[paste(index_1, "mean", sep = " ")] - Data_temp[paste(index_2, "mean", sep = " ")]
+  Mean_diff <- Data_temp[paste(index_1, "central_tendency", sep = " ")] - Data_temp[paste(index_2, "central_tendency", sep = " ")]
   Pooled_sd <- sqrt(
-    ((Data_temp[paste(index_1, "n", sep = " ")] - 1) * Data_temp[paste(index_1, "sd", sep = " ")]^2 + 
-      (Data_temp[paste(index_2, "n", sep = " ")] - 1) * Data_temp[paste(index_2, "sd", sep = " ")]^2) / 
+    ((Data_temp[paste(index_1, "n", sep = " ")] - 1) * Data_temp[paste(index_1, "dispersion", sep = " ")]^2 + 
+      (Data_temp[paste(index_2, "n", sep = " ")] - 1) * Data_temp[paste(index_2, "dispersion", sep = " ")]^2) / 
       ((Data_temp[paste(index_1, "n", sep = " ")] - 1) + (Data_temp[paste(index_2, "n", sep = " ")] - 1))
   )
   
   d <- Mean_diff / Pooled_sd
-  colnames(d) <- paste("d",
+  colnames(d) <- paste("ES",
                        index_1,
                        index_2,
                        sep = "_")

@@ -11,7 +11,9 @@ MAGMA_desc(
   step_num = NULL,
   step_var = NULL,
   filename = NULL,
-  verbose = TRUE
+  verbose = TRUE,
+  covariates_ordinal = NULL,
+  covariates_nominal = NULL
 )
 }
 \arguments{
@@ -38,6 +40,14 @@ the resulting Word document with the Table should have. Optional argument.}
 
 \item{verbose}{TRUE or FALSE indicating whether matching information should
 be printed to the console.}
+
+\item{covariates_ordinal}{A character vector specifying the variable names
+of the ordinal variables for which the descriptive statistics should be
+computed.}
+
+\item{covariates_nominal}{A character vector specifying the variable names
+of the nominal variables for which the descriptive statistics should be
+computed.}
 }
 \value{
 A table of descriptive statistics and pairwise effects for pre- or
@@ -54,7 +64,7 @@ pairwise effects (Cohen's d) are computed.
 }
 \examples{
 # Defining covariates
-covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic", "gender")
+covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic")
 
 # Estimating pre-matching descriptive statistics and pairwise effects using
 # the data set 'MAGMA_sim_data'
@@ -62,6 +72,8 @@ covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic
 # giftedness support yes or no)
 MAGMA_desc(Data = MAGMA_sim_data,
            covariates = covariates_gifted,
+           covariates_ordinal = "teacher_ability_rating",
+           covariates_nominal = "gender",
            group =  "gifted_support")
 
 
@@ -72,6 +84,8 @@ MAGMA_desc(Data = MAGMA_sim_data,
 # Estimating statistics for 100 cases per group
 MAGMA_desc(Data = MAGMA_sim_data,
            covariates = covariates_gifted,
+           covariates_ordinal = "teacher_ability_rating",
+           covariates_nominal = "gender",
            group =  "gifted_support",
            step_num = 100,
            step_var = "step_gifted")
