@@ -21,7 +21,8 @@ MAGMA_desc(
 plotting as well as the specified grouping variable.}
 
 \item{covariates}{A character vector specifying the variable names of the
-continuous variables for which the descriptive statistics should be computed.}
+binary and metric variables for which the descriptive statistics should be
+computed.}
 
 \item{group}{A character (vector) specifying the groups for which
 differentiated statistics should be computed.}
@@ -41,13 +42,11 @@ the resulting Word document with the Table should have. Optional argument.}
 \item{verbose}{TRUE or FALSE indicating whether matching information should
 be printed to the console.}
 
-\item{covariates_ordinal}{A character vector specifying the variable names
-of the ordinal variables for which the descriptive statistics should be
-computed.}
+\item{covariates_ordinal}{A character vector specifying the variable names of
+the ordinal variables for which the descriptive statistics should be computed.}
 
-\item{covariates_nominal}{A character vector specifying the variable names
-of the nominal variables for which the descriptive statistics should be
-computed.}
+\item{covariates_nominal}{A character vector specifying the variable names of
+the nominal variables for which the descriptive statistics should be computed.}
 }
 \value{
 A table of descriptive statistics and pairwise effects for pre- or
@@ -58,13 +57,13 @@ This function provides pre- and post-matching descriptive statistics and
 effects.
 }
 \details{
-This function enables the computation of descriptive statistics of
-continuous variables for the overall sample and specified groups. Additional,
-pairwise effects (Cohen's d) are computed.
+This function enables the computation of descriptive statistics for the
+overall sample and specified groups. Additional, pairwise effects according
+to the respective scale level are computed.
 }
 \examples{
 # Defining covariates
-covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic")
+covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic", "gender")
 
 # Estimating pre-matching descriptive statistics and pairwise effects using
 # the data set 'MAGMA_sim_data'
@@ -72,8 +71,6 @@ covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic
 # giftedness support yes or no)
 MAGMA_desc(Data = MAGMA_sim_data,
            covariates = covariates_gifted,
-           covariates_ordinal = "teacher_ability_rating",
-           covariates_nominal = "gender",
            group =  "gifted_support")
 
 
@@ -84,8 +81,6 @@ MAGMA_desc(Data = MAGMA_sim_data,
 # Estimating statistics for 100 cases per group
 MAGMA_desc(Data = MAGMA_sim_data,
            covariates = covariates_gifted,
-           covariates_ordinal = "teacher_ability_rating",
-           covariates_nominal = "gender",
            group =  "gifted_support",
            step_num = 100,
            step_var = "step_gifted")

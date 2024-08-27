@@ -4,7 +4,15 @@
 \alias{Balance_MAGMA}
 \title{Balance_MAGMA}
 \usage{
-Balance_MAGMA(Data, group, covariates, step = "step", verbose = TRUE)
+Balance_MAGMA(
+  Data,
+  group,
+  covariates,
+  step = "step",
+  verbose = TRUE,
+  covariates_ordinal = NULL,
+  covariates_nominal = NULL
+)
 }
 \arguments{
 \item{Data}{A data frame containing at least the \emph{grouping} variable, the
@@ -27,6 +35,12 @@ name of the main MAGMA function.}
 
 \item{verbose}{TRUE or FALSE indicating whether matching information should
 be printed to the console.}
+
+\item{covariates_ordinal}{A character vector listing the names of all ordinal
+covariates of interest.}
+
+\item{covariates_nominal}{A character vector listing the names of all nominal
+covariates of interest.}
 }
 \value{
 A list of length four containing all balance criteria and all
@@ -35,7 +49,7 @@ pairwise effects with respect to group sample size.
 \description{
 This function computes all four balance criteria of 'MAGMA.R', namely
 \emph{Pillai's Trace}, \emph{d-ratio}, \emph{mean g}, and \emph{adjusted d-ratio}. The
-estimation involves both binary and metric variables. Balance
+estimation considers the scale level of the variables. Balance
 estimation is performed across various sample sizes. See Details for more
 information.
 }

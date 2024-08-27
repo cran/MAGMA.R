@@ -3,14 +3,15 @@
 #' This function provides pre- and post-matching descriptive statistics and
 #' effects.
 #'
-#' This function enables the computation of descriptive statistics of
-#' continuous variables for the overall sample and specified groups. Additional,
-#' pairwise effects (Cohen's d) are computed.
+#' This function enables the computation of descriptive statistics for the
+#' overall sample and specified groups. Additional, pairwise effects according
+#' to the respective scale level are computed.
 #'
 #' @param Data A data frame that contains the desired variable for density
 #' plotting as well as the specified grouping variable.
 #' @param covariates A character vector specifying the variable names of the
-#' continuous variables for which the descriptive statistics should be computed.
+#' binary and metric variables for which the descriptive statistics should be
+#' computed.
 #' @param group A character (vector) specifying the groups for which
 #' differentiated statistics should be computed.
 #' @param step_num An integer specifying the number of cases to be
@@ -24,12 +25,10 @@
 #' the resulting Word document with the Table should have. Optional argument.
 #' @param verbose TRUE or FALSE indicating whether matching information should
 #' be printed to the console.
-#' @param covariates_ordinal A character vector specifying the variable names
-#' of the ordinal variables for which the descriptive statistics should be
-#' computed.
-#' @param covariates_nominal A character vector specifying the variable names
-#' of the nominal variables for which the descriptive statistics should be
-#' computed.
+#' @param covariates_ordinal A character vector specifying the variable names of
+#' the ordinal variables for which the descriptive statistics should be computed.
+#' @param covariates_nominal A character vector specifying the variable names of
+#' the nominal variables for which the descriptive statistics should be computed.
 #'
 #' @author Julian Urban
 #'
@@ -50,7 +49,7 @@
 #'
 #' @examples
 #' # Defining covariates
-#' covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic")
+#' covariates_gifted <- c("GPA_school", "IQ_score", "Motivation", "parents_academic", "gender")
 #'
 #' # Estimating pre-matching descriptive statistics and pairwise effects using
 #' # the data set 'MAGMA_sim_data'
@@ -58,8 +57,6 @@
 #' # giftedness support yes or no)
 #' MAGMA_desc(Data = MAGMA_sim_data,
 #'            covariates = covariates_gifted,
-#'            covariates_ordinal = "teacher_ability_rating",
-#'            covariates_nominal = "gender",
 #'            group =  "gifted_support")
 #'
 #'
@@ -70,8 +67,6 @@
 #' # Estimating statistics for 100 cases per group
 #' MAGMA_desc(Data = MAGMA_sim_data,
 #'            covariates = covariates_gifted,
-#'            covariates_ordinal = "teacher_ability_rating",
-#'            covariates_nominal = "gender",
 #'            group =  "gifted_support",
 #'            step_num = 100,
 #'            step_var = "step_gifted")
@@ -168,7 +163,7 @@ if(is.character(covariates_ordinal)) {
     dplyr::select(tidyselect::all_of(group),
                   tidyselect::all_of(covariates)) %>%
     psych::describe() %>%
-    tibble::as_tibble() %>%
+    tibble::as_tibble(.name_repair = "minimal") %>%
     round(digits = 2)
   descs_overall <- descs_overall[c("n", "mean", "sd")] %>%
     purrr::set_names(c("n", "central_tendency", "dispersion"))
@@ -197,7 +192,8 @@ if(is.character(covariates_ordinal)) {
   } else if(ncol(descs_group) == 12) {
     index_matrix <- matrix(data = c("1", "1", "1", "2", "2", "3",
                                     "2", "3", "4", "3", "4", "4"),
-                           ncol = 2)}
+                           ncol = 2)
+    }
 
   effects_groups <- purrr::map2_dfc(index_matrix[, 1],
                                     index_matrix[, 2],
@@ -211,9 +207,12 @@ stats_overall <- cbind(descs_overall,
 
 if(!is.null(covariates_ordinal)) {
   rows_temp <- rownames(stats_overall)
+  Data[, covariates_ordinal] <- sapply(covariates_ordinal,
+                                       function(var) {
+                                         as.numeric(Data[, var] )})
     stats_overall <- rbind(stats_overall,
                            row_ordinal(Data, group, covariates_ordinal) %>%
-                             tibble::as_tibble() %>%
+                             tibble::as_tibble(.name_repair = "minimal") %>%
                              purrr::set_names(colnames(stats_overall))
                            )
     rownames(stats_overall) <- c(rows_temp, covariates_ordinal)
@@ -223,7 +222,7 @@ if(!is.null(covariates_nominal)) {
   rows_temp <- rownames(stats_overall)
   stats_overall <- rbind(stats_overall,
                          row_nominal(Data, group, covariates_nominal) %>%
-                           tibble::as_tibble() %>%
+                           tibble::as_tibble(.name_repair = "minimal") %>%
                            purrr::set_names(colnames(stats_overall))
   )
   rownames(stats_overall) <- c(rows_temp, covariates_nominal)

@@ -21,17 +21,29 @@ row_ordinal<- function(Data,
                        group,
                        variable) {
   
-  group_values <- sort(unique(Data[, group]))
+  class_variables <- unique(sapply(Data[, variable], class))
+                            
+  if(class_variables != "numeric" &
+     class_variables != "double" &
+     class_variables != "integer") {
+    Data[, variable] <- sapply(Data[, variable], as.numeric)
+    warning("Some ordinal variables were not specifide as numeric variables.
+             These variables were recoded to compute descriptive statistics.
+             Please check scale level of 'covariates_ordinal'.")
+  }
+  
+  group_values <- sort(unlist(unique(Data[, group])))
   table_statistics <- lapply(variable,
                              function(var) {
-                               table(Data[ , group], Data[, var])
+                               table(unlist(Data[ , group]),
+                                     unlist(Data[, var]))
                              })
   
   overall_stats <- sapply(c(1:length(variable)),
                           function(index) {
                             c(sum(table_statistics[[index]]),
-                              stats::median(Data[, variable[index]], na.rm = TRUE),
-                              stats::IQR(Data[, variable[index]], na.rm = TRUE)
+                              stats::median(unlist(Data[, variable[index]]), na.rm = TRUE),
+                              stats::IQR(unlist(Data[, variable[index]]), na.rm = TRUE)
                             )
                           })
   
@@ -40,13 +52,18 @@ row_ordinal<- function(Data,
                           sapply(group_values,
                                  function(gr) {
                                    c(sum(table_statistics[[index]][as.character(gr), ]),
-                                     stats::median(Data[Data[, group] == gr, variable[index]], na.rm = TRUE),
-                                     stats::IQR(Data[Data[, group] == gr, variable[index]], na.rm = TRUE)
+                                     stats::median(unlist(Data[unlist(Data[, group] == gr), variable[index]]), na.rm = TRUE),
+                                     stats::IQR(unlist(Data[unlist(Data[, group] == gr), variable[index]]), na.rm = TRUE)
                                    )
                                  })
                           
                         })
-  effect_sizes <- round(effect_ordinal(Data, group, variable), digits = 2)
+  
+  effect_sizes <- round(sapply(variable,
+                               effect_ordinal,
+                               Data = Data,
+                               group = group),
+                        digits = 2)
   
   if(length(variable) > 1) {
   output <- rbind(overall_stats, group_stats, t(effect_sizes)) %>%
@@ -81,7 +98,7 @@ effect_ordinal <- function(Data,
                            group,
                            variable) {
   
-  group_values <- sort(unique(Data[, group]))
+  group_values <- sort(unlist(unique(Data[, group])))
   
   if(length(group_values) == 2) {
     index_matrix <- matrix(data = c(1, 2),
@@ -94,21 +111,23 @@ effect_ordinal <- function(Data,
                                     2, 3, 4, 3, 4, 4),
                            ncol = 2)}
   
-  effects <- sapply(c(1:nrow(index_matrix)),
-                    function(row) {
-                      group_1 <- index_matrix[row, 1]
-                      group_2 <- index_matrix[row, 2]
-                      groups_temp <- group_values[c(group_1, group_2)]
-                      Data_temp <- Data[Data[, group] %in% groups_temp, ]
-                      sapply(variable,
-                             function(var) {
-                               p_value <- stats::wilcox.test(
-                                 Data_temp[, var] ~ Data_temp[, group])[["p.value"]]
-                               stats::qnorm(p_value / 2) / sqrt(nrow(Data_temp[!is.na(Data_temp[, var]), ]))
-                             })
-                    }) 
+  suppressWarnings({
+  effects <- sapply(c(1:nrow(index_matrix)), function(row) {
+    group_1 <- index_matrix[row, 1]
+    group_2 <- index_matrix[row, 2]
+    groups_temp <- group_values[c(group_1, group_2)]
+    Data_temp <- Data[unlist(Data[, group]) %in% groups_temp, 
+    ]
+    sapply(variable, function(var) {
+      p_value <- stats::wilcox.test(unlist(Data_temp[, 
+                                                     var]) ~ unlist(Data_temp[, group]))[["p.value"]]
+      stats::qnorm(p_value/2)/sqrt(nrow(Data_temp[!is.na(Data_temp[, 
+                                                                   var]), ]))
+    })
+  })})
+  d_effects <- (2 * effects) / sqrt(1 - effects ^2)
   
-  return(effects)
+  return(d_effects)
 }
 
 
@@ -135,10 +154,11 @@ row_nominal <- function(Data,
                        group,
                        variable) {
   
-  group_values <- sort(unique(Data[, group]))
+  group_values <- sort(unlist(unique(Data[, group])))
   table_statistics <- lapply(variable,
                              function(var) {
-                               table(Data[ , group], Data[, var])
+                               table(unlist(Data[ , group]),
+                                     unlist(Data[, var]))
                              })
   
   overall_stats <- sapply(c(1:length(variable)),
@@ -149,6 +169,69 @@ row_nominal <- function(Data,
                             )
                           })
   
+  modi_check <- sapply(c(1:length(variable)),
+                      function(index) {
+                        sapply(group_values,
+                               function(gr) {
+                                 length(
+                                   as.numeric(
+                                     names(
+                                       which(
+                                         table_statistics[[index]][as.character(gr), ]
+                                         == max(
+                                           table_statistics[[index]][as.character(gr), ])
+                                       )))
+                                 )
+                               })
+                      })
+  
+  if(sum(modi_check > 1) != 0) {
+    bimodal_variables <- which(modi_check == 2, arr.ind = TRUE)
+    multimodal_variables <- which(modi_check > 2, arr.ind = TRUE)
+    
+    group_stats <- sapply(c(1:length(variable)),
+                          function(index) {
+                            sapply(c(1:length(group_values)),
+                                   function(gr_index) {
+                                     N <- sum(table_statistics[[index]][as.character(gr_index), ])
+                                     if(sum(rowSums(cbind(index == bimodal_variables[, 2],
+                                        gr_index == bimodal_variables[, 1] )) == 2) == 1) {
+                                      modi <- as.numeric(
+                                         paste(
+                                         names(
+                                           which(
+                                             table_statistics[[index]][as.character(gr_index), ]
+                                             == max(
+                                               table_statistics[[index]][as.character(gr_index), ])
+                                           )), collapse = ".")
+                                         )
+                                       warning(paste("Variable",
+                                       variable[index], "in group",
+                                       gr_index,
+                                       "has two modi. Both are returned, seperated by a '.'."))
+                                      
+                                     } else if(sum(rowSums(cbind(index == multimodal_variables[, 2],
+                                                                 gr_index == multimodal_variables[, 1] )) == 2) == 1) {
+                                       modi <- NA
+                                       warning(paste("Variable",
+                                                     variable[index], "in group",
+                                                     gr_index,
+                                                     "has more than two modi. Returning 'NA'. Please check modi of these variable in this group manually."))
+                                     } else {
+                                       modi <- as.numeric(
+                                         names(
+                                           which(
+                                             table_statistics[[index]][as.character(gr_index), ]
+                                             == max(
+                                               table_statistics[[index]][as.character(gr_index), ])
+                                           )))
+                                     }
+                                      num_cats <- length(table_statistics[[index]][as.character(gr_index), ])
+                                      c(N, modi, num_cats)
+                                      })
+                            })
+    
+  } else {
   group_stats <- sapply(c(1:length(variable)),
                         function(index) {
                           sapply(group_values,
@@ -166,6 +249,7 @@ row_nominal <- function(Data,
                                  })
                           
                         })
+  }
   
   effect_sizes <- round(effect_nominal(Data, group, variable), digits = 2)
   
@@ -179,7 +263,7 @@ row_nominal <- function(Data,
   return(output)
 }
 
-#' effect_ordinal
+#' effect_nominal
 #'
 #' Computes descriptive statistics and effect size for nominal data
 #'
@@ -192,7 +276,7 @@ row_nominal <- function(Data,
 #'
 #' @author Julian Urban
 #'
-#' @importFrom stats chisq.test
+#' @importFrom stddiff stddiff.category
 #' 
 #' @return A vector or matrix containing nominal effect sizes
 #'
@@ -201,7 +285,7 @@ effect_nominal <- function(Data,
                            group,
                            variable) {
   
-  group_values <- sort(unique(Data[, group]))
+  group_values <- sort(unlist(unique(Data[, group])))
   
   if(length(group_values) == 2) {
     index_matrix <- matrix(data = c(1, 2),
@@ -219,14 +303,14 @@ effect_nominal <- function(Data,
                       group_1 <- index_matrix[row, 1]
                       group_2 <- index_matrix[row, 2]
                       groups_temp <- group_values[c(group_1, group_2)]
-                      Data_temp <- Data[Data[, group] %in% groups_temp, ]
+                      Data_temp <- Data[unlist(Data[, group]) %in% groups_temp, ]
+                      Data_temp[, group] <- as.numeric(Data_temp[, group])
+                      Data_temp[, variable] <- as.numeric(Data_temp[, variable])
                       sapply(variable,
                              function(var) {
-                               Chi_test <- stats::chisq.test(Data_temp[, var],
-                                                             Data_temp[, group])
-                               round(
-                                 sqrt(Chi_test[["statistic"]][["X-squared"]] /
-                                            sum(Chi_test[["observed"]])), 2)
+                               stddiff::stddiff.category(data = Data_temp,
+                                                         gcol = which(colnames(Data_temp) == group),
+                                                         vcol= which(colnames(Data_temp) == var))[1, "stddiff"]
                              })
                     }) 
   

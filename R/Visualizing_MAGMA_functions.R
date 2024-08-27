@@ -2,7 +2,7 @@
 #'
 #' This function computes all four balance criteria of 'MAGMA.R', namely
 #' *Pillai's Trace*, *d-ratio*, *mean g*, and *adjusted d-ratio*. The
-#' estimation involves both binary and metric variables. Balance
+#' estimation considers the scale level of the variables. Balance
 #' estimation is performed across various sample sizes. See Details for more
 #' information.
 #'
@@ -34,6 +34,10 @@
 #' name of the main MAGMA function.
 #' @param verbose TRUE or FALSE indicating whether matching information should
 #' be printed to the console.
+#' @param covariates_ordinal A character vector listing the names of all ordinal
+#' covariates of interest.
+#' @param covariates_nominal A character vector listing the names of all nominal
+#'covariates of interest.
 #'
 #'
 #' @author Julian Urban
@@ -97,7 +101,9 @@ Balance_MAGMA <- function(Data,
                           group,
                           covariates,
                           step = "step",
-                          verbose = TRUE) {
+                          verbose = TRUE,
+                          covariates_ordinal = NULL,
+                          covariates_nominal = NULL) {
 # Check input
   if (!is.data.frame(Data) && !tibble::is_tibble(Data)) {
     stop("data needs to be list, data frame, or tibble!")
@@ -113,6 +119,28 @@ Balance_MAGMA <- function(Data,
 
   if(!is.character(step) | length(step) > 1) {
     stop("step needs to be a character of length 1!")
+  }
+  
+  if(is.character(covariates_ordinal)) {
+    if(sum(covariates_ordinal %in% covariates) > 0) {
+      stop("Some variables are specified as covariates and covariates_ordinal. You can only specify each variable to one of theese arguments!")
+    }
+  }
+  
+  if(!is.character(covariates_nominal) & !is.null(covariates_nominal)) {
+    stop("covariates_nominal needs to be a character or a character vector!")
+  }
+  
+  if(is.character(covariates_nominal)) {
+    if(sum(covariates_nominal %in% covariates) > 0) {
+      stop("Some variables are specified as covariates and covariates_nominal You can only specify each variable to one of theese arguments!")
+    }
+  }
+  
+  if(is.character(covariates_nominal) & is.character(covariates_ordinal))  {
+    if(sum(covariates_nominal %in% covariates_ordinal) > 0) {
+      stop("Some variables are specified as covariates_ordinal and covariates_nominal. You can only specify each variable to one of theese arguments!")
+    }
   }
 
   if(verbose) {
@@ -157,7 +185,9 @@ if(length(group) == 2) {
   d_effects <- inner_d(da = Data,
                        gr = group,
                        co = covariates,
-                       st = step)
+                       st = step,
+                       co_ord = covariates_ordinal,
+                       co_nom = covariates_nominal)
 
   ########################
   ########mean g#########
@@ -169,8 +199,10 @@ if(length(group) == 2) {
     dplyr::select(tidyselect::all_of(group)) %>%
     table() %>%
     length()
+  
+  input_g <- d_effects$effects[rownames(d_effects$effects) %in% covariates, ]
 
-  mean_g <- mean_g_meta(input = d_effects,
+  mean_g <- mean_g_meta(input = input_g,
                         number_groups = group_number)
 
   ########################
@@ -179,7 +211,7 @@ if(length(group) == 2) {
   if(verbose) {
   cat("\n", "Mean g finished. Starting to compute adjusted d-ratio.")
   }
-  adj_d_ratio_20 <- adj_d_ratio(input = d_effects)
+  adj_d_ratio_20 <- adj_d_ratio(input = d_effects$effects)
 
   #####################
   ###Output creation###
@@ -219,6 +251,10 @@ if(length(group) == 2) {
 #' metric covariates of interest.
 #' @param verbose TRUE or FALSE indicating whether matching information should
 #' be printed to the console.
+#' @param covariates_ordinal A character vector listing the names of all ordinal
+#' covariates of interest.
+#' @param covariates_nominal A character vector listing the names of all nominal
+#'covariates of interest.
 #'
 #' @author Julian Urban
 #'
@@ -272,7 +308,12 @@ if(length(group) == 2) {
 #' unbalance_2x2
 #' 
 #'
-initial_unbalance <- function(Data, group, covariates, verbose = TRUE) {
+initial_unbalance <- function(Data,
+                              group,
+                              covariates,
+                              verbose = TRUE, 
+                              covariates_ordinal = NULL,
+                              covariates_nominal = NULL) {
   if (!is.data.frame(Data) && !tibble::is_tibble(Data)) {
     stop("Data needs to be a data frame, or tibble!")
   }
@@ -284,6 +325,42 @@ initial_unbalance <- function(Data, group, covariates, verbose = TRUE) {
   if(!is.character(covariates)) {
     stop("covariates needs to be a character or a character vector!")
   }
+  
+  class_covariates <- unique(sapply(Data[, covariates], class))
+  
+  if("factor" %in% class_covariates |
+     "character" %in%  class_covariates) {
+       stop("Some covariates variables are defined as factor or character.
+            Covariates need to be numeric variables.")
+  }
+  
+  if(!is.character(covariates_ordinal) & !is.null(covariates_ordinal)) {
+    stop("covariates_ordinal needs to be a character or a character vector!")
+  }
+  
+  if(is.character(covariates_ordinal)) {
+    if(sum(covariates_ordinal %in% covariates) > 0) {
+      stop("Some variables are specified as covariates and covariates_ordinal. You can only specify each variable to one of theese arguments!")
+    }
+  }
+  
+  if(!is.character(covariates_nominal) & !is.null(covariates_nominal)) {
+    stop("covariates_nominal needs to be a character or a character vector!")
+  }
+  
+  if(is.character(covariates_nominal)) {
+    if(sum(covariates_nominal %in% covariates) > 0) {
+      stop("Some variables are specified as covariates and covariates_nominal You can only specify each variable to one of theese arguments!")
+    }
+  }
+  
+  if(is.character(covariates_nominal) & is.character(covariates_ordinal))  {
+    if(sum(covariates_nominal %in% covariates_ordinal) > 0) {
+      stop("Some variables are specified as covariates_ordinal and covariates_nominal. You can only specify each variable to one of theese arguments!")
+    }
+  }
+    
+    Data[, covariates_ordinal] <- sapply(Data[, covariates_ordinal], as.numeric)
 
   ########################
   #####Pillai's Trace#####
@@ -292,6 +369,12 @@ initial_unbalance <- function(Data, group, covariates, verbose = TRUE) {
     Pillai_input <- Data %>%
       dplyr::select(tidyselect::all_of(covariates),
                     tidyselect::all_of(group))
+    
+    if(sum(rowSums(is.na(Pillai_input)) == 0) < 50) {
+      Pillai <- NA
+      warning("Too few cases with valid data on all covariates to estimate Pillai's
+              Trace. Setting Pillai's Trace to NA.")
+    } else {
     
     formula <- paste0("cbind(", paste(covariates, collapse = ","), ") ~ as.factor(", group, ")")
     
@@ -312,11 +395,17 @@ initial_unbalance <- function(Data, group, covariates, verbose = TRUE) {
         unlist()
     }
 
-  } else {
+  }} else {
     Pillai_input <- Data %>%
       dplyr::select(tidyselect::all_of(covariates),
                     tidyselect::all_of(group[1]),
                     tidyselect::all_of(group[2]))
+    
+    if(sum(rowSums(is.na(Pillai_input)) == 0) < 50) {
+      Pillai <- NA
+      warning("Too few cases with valid data on all covariates to estimate Pillai's
+              Trace. Setting Pillai's Trace to NA.")
+    } else {
     
     formula <- paste0("cbind(", paste(covariates, collapse = ","), ") ~ as.factor(", group[1],
                       ") + as.factor(", group[2],
@@ -342,7 +431,7 @@ initial_unbalance <- function(Data, group, covariates, verbose = TRUE) {
       unlist()
     }
 
-  }
+  }}
 
 group_test <- group
 
@@ -414,8 +503,34 @@ if(length(group) == 2) {
       d_effect[j, i] <- mean_diff/pooled_sd
     }
   }
+  
+  effects <- unlist(d_effect)
+  if(!is.null(covariates_ordinal)) {
+    ordinal_effects <- effect_ordinal(Data = Data,
+                                      group = group,
+                                      variable = covariates_ordinal)
+    effects <- c(effects, unlist(ordinal_effects))
+    ordinal_N <-   lapply(covariates_ordinal,
+                          function(var) {
+                            rowSums(as.matrix(table(unlist(Data[ , group]),
+                                                    unlist(Data[, var]))))
+                          })
+    }
+  
+  if(!is.null(covariates_nominal)) {
+    nominal_effects <- effect_nominal(Data = Data,
+                                      group = group,
+                                      variable = covariates_nominal)
+    effects <- c(effects, unlist(nominal_effects))
+    nominal_N <-  lapply(covariates_nominal,
+                         function(var) {
+                           rowSums(as.matrix(table(unlist(Data[ , group]),
+                                 unlist(Data[, var]))))
+                           })
+  }
+  
 
-  d_logic <- abs(d_effect) < .20
+  d_logic <- abs(effects) < .20
   d_ratio <- sum(d_logic)/length(d_logic)
 
 
@@ -423,16 +538,19 @@ if(length(group) == 2) {
   ########mean g#########
   ########################
   n_matrix <- var_matrix <- d_effect
+  metric_N <-  lapply(covariates,
+                       function(var) {
+                         rowSums(as.matrix(table(unlist(Data[ , group]),
+                                                 unlist(Data[, var]))))
+                       })
 
   for(j in 1:nrow(pairwise_matrix)) {
     value_1 <- pairwise_matrix[j, 1]
     value_2 <- pairwise_matrix[j, 2]
-    for(i in seq_along(group_stats)) {
-      temp_n <- group_stats[[i]]["n"] %>%
-        unlist()
-      n_matrix[j, i] <- sum(temp_n)
-      var_matrix[j, i] <- d_effect[j, i]^2/(2 * sum(temp_n)) +
-                          sum(temp_n)/prod(temp_n)
+    for(i in seq_along(covariates)) {
+      n_matrix[j, i] <- sum(metric_N[[i]][c(value_1, value_2)])
+      var_matrix[j, i] <- d_effect[j, i]^2/(2 * sum(metric_N[[i]][c(value_1, value_2)])) +
+                          sum(metric_N[[i]][c(value_1, value_2)])/prod(metric_N[[i]][c(value_1, value_2)])
     }
   }
 
@@ -441,7 +559,7 @@ if(length(group) == 2) {
 
   effect_g <- abs(J_matrix * d_effect)
 
-  var_g <- J_matrix^2 * var_matrix #matrix multiplication?
+  var_g <- J_matrix^2 * var_matrix 
 
   if(nrow(effect_g) == 1) {
     mean_g <- metafor::rma(effect_g, var_g)[["b"]]
@@ -466,10 +584,32 @@ if(length(group) == 2) {
   ########################
   ###adj. d ratioo########
   ########################
+  matrix_n <- lapply(c(covariates,
+                       covariates_ordinal,
+                       covariates_nominal),
+                     function(variable) {
+                       matrix_n_temp <- unlist(table(Data[!is.na(Data[, variable]), group]))
+                       sapply(c(1:nrow(pairwise_matrix)),
+                              function(index) {
+                                n <- c(matrix_n_temp[pairwise_matrix[index, 1]],
+                                       matrix_n_temp[pairwise_matrix[index, 2]])
+                              }) %>%
+                         t()
+                     })
+    matrix_n <-  do.call(rbind.data.frame, matrix_n)
 
-  adj_d_ratio <- purrr::map2_dbl(effect_g, var_g, stats::pnorm, q = .20) %>%
-    matrix(ncol = ncol(effect_g), nrow = nrow(effect_g)) %>%
-    sum() / (ncol(effect_g) * nrow(effect_g))
+  matrix_J <- 1 - (3/(4 * (2 * rowSums(matrix_n) - 2) - 1))
+  
+  effects_g <- abs(matrix_J * effects)
+  
+  var_matrix <- effects_g^2 / (2 * rowSums(matrix_n)) +
+    rowSums(matrix_n) / (matrix_n[, 1] * matrix_n[, 2])
+
+  var_effects_g <- matrix_J^2 * var_matrix 
+
+
+  adj_d_ratio_raw <- purrr::map2_dbl(effects_g, sqrt(var_effects_g), stats::pnorm, q = .20) 
+  adj_d_ratio <-  sum(adj_d_ratio_raw) / length(adj_d_ratio_raw)
 
   #####################
   ###Output creation###
