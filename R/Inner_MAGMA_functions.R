@@ -11,6 +11,7 @@
 #'
 #' @return A matched sample including the variables step, weight & distance
 #'
+#' @noRd
 #'
 match_iterative <- function(distance_input, output_list, rep_elements) {
   iteration_max <- min(rep_elements)
@@ -101,6 +102,7 @@ match_iterative <- function(distance_input, output_list, rep_elements) {
 #'
 #' @return the input for distance estimation
 #'
+#' @noRd
 #'
 build_value_matrix <- function(input_list, rep_element, name_ps = "distance_ps") {
   value_matrix <- matrix(NA, nrow = prod(rep_element), ncol = length(rep_element))

@@ -42,6 +42,7 @@ Pillai_DV <- function(data, input) {
 #' grouping variables were specified, the output is a matrix containing
 #' Pillai's Trace for both IVs and their ineraction.
 #'
+#' @noRd
 #'
 Pillai_iterativ <- function(da, gr, co, st) {
   if(!is.data.frame(da) && !tibble::is_tibble(da)) {

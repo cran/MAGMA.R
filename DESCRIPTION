@@ -1,6 +1,6 @@
 Package: MAGMA.R
 Title: MAny-Group MAtching
-Version: 1.0.3
+Version: 1.0.4
 Authors@R: c(person("Julian", "Urban", email = "urbanj@uni-trier.de", role = c("aut", "cre")),
     person("Markus D.", "Feuchter", role = c("aut")),
     person("Vsevolod", "Scherrer", role = c("aut")),
@@ -32,6 +32,6 @@ Author: Julian Urban [aut, cre],
 Maintainer: Julian Urban <urbanj@uni-trier.de>
 BugReports: https://github.com/JulianUrban/MAGMA/issues
 NeedsCompilation: no
-Packaged: 2024-08-27 06:44:52 UTC; urbanjn
+Packaged: 2025-05-26 15:32:46 UTC; urbanjn
 Repository: CRAN
-Date/Publication: 2024-08-27 07:10:02 UTC
+Date/Publication: 2025-05-26 16:30:02 UTC
