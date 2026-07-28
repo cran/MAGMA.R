@@ -21,7 +21,6 @@
 #' @return A list of length two. The first element is a matrix including all
 #' pairwise effects. The second is a vector expressing d-ratio
 #' in dependency of sample size.
-#'
 #' @noRd
 #'
 inner_d <- function(da, gr, co, st, co_ord = NULL, co_nom = NULL) {
@@ -148,7 +147,7 @@ inner_d <- function(da, gr, co, st, co_ord = NULL, co_nom = NULL) {
                                                       return(ordinal_effects)
                                                     })
                           ds <- rbind(ds, ordinal_effects)
-                          
+
                         }
                         if(!is.null(co_nom)) {
                           data_temp <- da[da[, st] <= iteration, ]
@@ -199,7 +198,6 @@ effects <- cbind(matrix(NA, nrow = nrow(effects), ncol = 19),
 #'
 #' @return A vector containing the adjusted d-ratio in dependency of
 #' sample size.
-#'
 #' @noRd
 #'
 adj_d_ratio <- function(input) {

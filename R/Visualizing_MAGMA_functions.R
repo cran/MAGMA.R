@@ -255,6 +255,7 @@ if(length(group) == 2) {
 #' covariates of interest.
 #' @param covariates_nominal A character vector listing the names of all nominal
 #'covariates of interest.
+#' @param round A integer defining the number of digits for rounding results
 #'
 #' @author Julian Urban
 #'
@@ -313,7 +314,8 @@ initial_unbalance <- function(Data,
                               covariates,
                               verbose = TRUE,
                               covariates_ordinal = NULL,
-                              covariates_nominal = NULL) {
+                              covariates_nominal = NULL,
+                              round = 2) {
   if (!is.data.frame(Data) && !tibble::is_tibble(Data)) {
     stop("Data needs to be a data frame, or tibble!")
   }
@@ -615,17 +617,17 @@ if(length(group) == 2) {
   ###Output creation###
   ######################
   if(length(group_test) == 1) {
-  output <- cbind(round(Pillai, 2),
-                  round(d_ratio, 2),
-                  round(mean_g, 2),
-                  round(adj_d_ratio, 2))
+  output <- cbind(round(Pillai, digits = round),
+                  round(d_ratio, digits = round),
+                  round(mean_g, digits = round),
+                  round(adj_d_ratio, digits = round))
   rownames(output) <- "Unbalance"
   colnames(output) <- c("Pillai's Trace", "d-ratio", "Mean g", "adj. d-ratio")
   } else {
-    output <- c(round(Pillai, 2),
-                round(d_ratio, 2),
-                round(mean_g, 2),
-                round(adj_d_ratio, 2)) %>%
+    output <- c(round(Pillai, digits = round),
+                round(d_ratio, digits = round),
+                round(mean_g, digits = round),
+                round(adj_d_ratio, digits = round)) %>%
       as.matrix() %>%
       t()
     rownames(output) <- "Unbalance"
@@ -661,6 +663,7 @@ if(length(group) == 2) {
 #' the resulting Word document with the table should have.
 #' @param verbose TRUE or FALSE indicating whether matching information should
 #' be printed to the console.
+#' @param round A integer defining the number of digits for rounding results
 #'
 #'
 #' @author Julian Urban
@@ -681,13 +684,13 @@ if(length(group) == 2) {
 #' @examples
 #' # This function bases on a MAGMA function as well as Balance_MAGMA
 #' # Defining the names of the metric and binary covariates
-#' covariates_vector <- c("GPA_school", "IQ_score", "Motivation", "parents_academic", "gender")
+#' covariates_vector <- c("GPA_school", "IQ_score", "Motivation")
 #'
 #'
 #' # Estimating balance of a two-group matching using the data set
 #' # 'MAGMA_sim_data'.
 #' # Matching variable 'gifted_support' (received giftedness support yes or no)
-#' Balance_gifted <- Balance_MAGMA(Data = MAGMA_sim_data[MAGMA_sim_data$step_gifted < 200, ],
+#' Balance_gifted <- Balance_MAGMA(Data = MAGMA_sim_data[MAGMA_sim_data$step_gifted < 50, ],
 #'                                 group = "gifted_support",
 #'                                 covariates = covariates_vector,
 #'                                 step = "step_gifted")
@@ -715,7 +718,7 @@ if(length(group) == 2) {
 #' Table_MAGMA(Balance_2x2)
 #' }
 #'
-Table_MAGMA <- function(Balance, filename = NULL, verbose = TRUE) {
+Table_MAGMA <- function(Balance, filename = NULL, verbose = TRUE, round = 2) {
   #Check input
   if (!rlang::is_list(Balance)) {
     stop("Balance needs to be a Balance_MAGMA object!")
@@ -736,10 +739,10 @@ Table_MAGMA <- function(Balance, filename = NULL, verbose = TRUE) {
                                       "Best mean g",
                                       "Best adj. d-ratio"), #Row names for table
               #Extractig vakues for all three "optimal" models as well as their n er group
-              Pillai_Trace = round(Balance$Pillai[index_optimal], 2),
-              d_ratio = round(Balance$d_ratio$d_rate[index_optimal], 2),
-              mean_g = round(Balance$mean_effect[index_optimal], 2),
-              adjusted_d_ratio = round(Balance$adjusted_d_ratio[index_optimal], 2))
+              Pillai_Trace = round(Balance$Pillai[index_optimal], digits = round),
+              d_ratio = round(Balance$d_ratio$d_rate[index_optimal], digits = round),
+              mean_g = round(Balance$mean_effect[index_optimal], digits = round),
+              adjusted_d_ratio = round(Balance$adjusted_d_ratio[index_optimal], digits = round))
 
   balance_matrix$n_per_group <- index_optimal
   # Ordering table after n per group
@@ -766,12 +769,12 @@ Table_MAGMA <- function(Balance, filename = NULL, verbose = TRUE) {
                                         "Best mean g",
                                         "Best adj. d-ratio"), #Row names for table
                 #Extractig vakues for all three "optimal" models as well as their n er group
-                Pillai_Trace_ME1 = round(Balance$Pillai[1, index_optimal], 2),
-                Pillai_Trace_ME2 = round(Balance$Pillai[2, index_optimal], 2),
-                Pillai_Trace_IA = round(Balance$Pillai[3, index_optimal], 2),
-                d_ratio = round(Balance$d_ratio$d_rate[index_optimal], 2),
-                mean_g = round(Balance$mean_effect[index_optimal], 2),
-                adjusted_d_ratio = round(Balance$adjusted_d_ratio[index_optimal], 2))
+                Pillai_Trace_ME1 = round(Balance$Pillai[1, index_optimal], digits = round),
+                Pillai_Trace_ME2 = round(Balance$Pillai[2, index_optimal], digits = round),
+                Pillai_Trace_IA = round(Balance$Pillai[3, index_optimal], digits = round),
+                d_ratio = round(Balance$d_ratio$d_rate[index_optimal], digits = round),
+                mean_g = round(Balance$mean_effect[index_optimal], digits = round),
+                adjusted_d_ratio = round(Balance$adjusted_d_ratio[index_optimal], digits = round))
 
     balance_matrix$n_per_group <- index_optimal
     # Ordering table after n per group
@@ -816,6 +819,7 @@ return(balance_matrix)
 #'
 #' @import tidyverse ggplot2
 #' @importFrom rlang is_list
+#' @importFrom rlang .data
 #'
 #' @return R Plots showing the balance trend over sample size.
 #' @export
@@ -825,18 +829,18 @@ return(balance_matrix)
 #' # This function bases on a MAGMA function as well as Balance_MAGMA
 #' # To run examples, copy them into your console or script
 #' # Defining the names of the metric and binary covariates
-#' covariates_vector <- c("GPA_school", "IQ_score", "Motivation", "parents_academic", "gender")
+#' covariates_vector <- c("GPA_school", "IQ_score", "Motivation")
 #'
 #' #  Estimating balance of a two-group matching using the data set
 #' # 'MAGMA_sim_data'.
 #' # Matching variable 'gifted_support' (received giftedness support yes or no)
-#' Balance_gifted <- Balance_MAGMA(Data = MAGMA_sim_data[MAGMA_sim_data$step_gifted < 150, ],
+#' Balance_gifted <- Balance_MAGMA(Data = MAGMA_sim_data[MAGMA_sim_data$step_gifted < 50, ],
 #'                                 group = "gifted_support",
 #'                                 covariates = covariates_vector,
 #'                                 step = "step_gifted")
 #'
 #' Plot_MAGMA(Balance = Balance_gifted,
-#'            criterion = "Adj_d_ratio") #Using default to plot all criteria
+#'            criterion = "Adj_d_ratio") 
 #'
 #' \donttest{
 #' # 2x2 matching using the data set 'MAGMA_sim_data'
@@ -882,7 +886,7 @@ Plot_MAGMA <- function(Balance,
     Balance_Pillai$N <- c(1:nrow(Balance_Pillai))
 
     plot_Pillai <- ggplot2::ggplot(Balance_Pillai) +
-            ggplot2::geom_point(ggplot2::aes(x = .data[["N"]], y = .data[["value"]])) +
+            ggplot2::geom_point(ggplot2::aes(x = .data$N, y = .data$value)) +
             ggplot2::theme(panel.background = ggplot2::element_blank()) +
             ggplot2::scale_y_continuous(limits = c(0, .5),
                                breaks = seq(0, .5, .05)) +
@@ -907,7 +911,7 @@ Plot_MAGMA <- function(Balance,
         Balance_Pillai$N <- c(1:nrow(Balance_Pillai))
 
         ggplot2::ggplot(Balance_Pillai) +
-              ggplot2::geom_point(ggplot2::aes(x = .data[["N"]], y = .data[["value"]]))+
+              ggplot2::geom_point(ggplot2::aes(x = .data$N, y = .data$value))+
               ggplot2::theme(panel.background = ggplot2::element_blank()) +
               ggplot2::scale_y_continuous(limits = c(0, .5),
                                  breaks = seq(0, .5, .05)) +
@@ -932,7 +936,7 @@ Plot_MAGMA <- function(Balance,
     Balance_d$N <- c(1:nrow(Balance_d))
 
     plot_d <- ggplot2::ggplot(Balance_d) +
-            ggplot2::geom_point(ggplot2::aes(x = .data[["N"]], y = .data[["value"]])) +
+            ggplot2::geom_point(ggplot2::aes(x = .data$N, y = .data$value)) +
             ggplot2::theme(panel.background = ggplot2::element_blank()) +
             ggplot2::scale_y_continuous(limits = c(0, 1),
                                breaks = seq(0, 1, .2)) +
@@ -950,7 +954,7 @@ Plot_MAGMA <- function(Balance,
     Balance_g$N <- c(1:nrow(Balance_g))
 
     plot_g <- ggplot2::ggplot(Balance_g) +
-            ggplot2::geom_point(ggplot2::aes(x = .data[["N"]], y = .data[["value"]]))+
+            ggplot2::geom_point(ggplot2::aes(x = .data$N, y = .data$value))+
             ggplot2::theme(panel.background = ggplot2::element_blank()) +
             ggplot2::scale_y_continuous(limits = c(0, 1),
                                breaks = seq(0, 1, .2)) +
@@ -968,7 +972,7 @@ Plot_MAGMA <- function(Balance,
     Balance_adj_d$N <- c(1:nrow(Balance_adj_d))
 
     plot_adj_d <- ggplot2::ggplot(Balance_adj_d) +
-            ggplot2::geom_point(ggplot2::aes(x = .data[["N"]], y = .data[["value"]])) +
+            ggplot2::geom_point(ggplot2::aes(x = .data$N, y = .data$value)) +
             ggplot2::theme(panel.background = ggplot2::element_blank()) +
             ggplot2::scale_y_continuous(limits = c(0, 1),
                                breaks = seq(0, 1, .2)) +

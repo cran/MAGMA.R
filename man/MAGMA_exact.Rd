@@ -4,7 +4,16 @@
 \alias{MAGMA_exact}
 \title{MAGMA_exact}
 \usage{
-MAGMA_exact(Data, group, dist, exact, cores = 1, verbose = TRUE)
+MAGMA_exact(
+  Data,
+  group,
+  dist = NULL,
+  exact,
+  cores = 1,
+  verbose = TRUE,
+  covs = NULL,
+  weights = NULL
+)
 }
 \arguments{
 \item{Data}{A data frame or tibble containing at least your grouping and
@@ -28,6 +37,15 @@ parallel computation.}
 
 \item{verbose}{TRUE or FALSE indicating whether matching information should
 be printed to the console.}
+
+\item{covs}{Only relevant for Mahalanobis distance matching. Specifies the
+names of the variables for which Mahalanobis distance matching should be
+conducted as a character vector.}
+
+\item{weights}{Optional parameter for Mahalanobis distance matching. Should
+be a numeric vector with the same length as covs. These weights are used to
+estimate a weightes Mahalanobis distance. If not specified, all covariates
+are weighted equally.}
 }
 \value{
 Your input data frame of valid cases augmented with matching
@@ -65,14 +83,14 @@ matching, see \code{\link{MAGMA}}
 # Exact matching for 'enrichment' (participated in enrichment or not)
 # Students that participated can only be matched with other
 # students that participated and vice versa
-\donttest{
-MAGMA_sim_data_gifted_exact <- MAGMA_exact(Data = MAGMA_sim_data[c(1:100 ), ],
+MAGMA_sim_data_gifted_exact <- MAGMA_exact(Data = MAGMA_sim_data[c(1:10 ), ],
                                            group = "gifted_support",
                                            dist = "ps_gifted",
                                            exact = "enrichment",
                                            cores = 1)
 head(MAGMA_sim_data_gifted_exact)
 
+\donttest{
 # Conducting three-group matching using the data set 'MAGMA_sim_data'
 # Matching variable 'teacher_ability_rating' (ability rated from teacher as
 # below average, average, or above average)

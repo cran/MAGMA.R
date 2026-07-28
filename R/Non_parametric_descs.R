@@ -15,7 +15,6 @@
 #'
 #' @return A vector containing the adjusted d-ratio in dependency of
 #' sample size.
-#'
 #' @noRd
 #'
 row_ordinal<- function(Data,
@@ -93,7 +92,6 @@ row_ordinal<- function(Data,
 #' @importFrom stats wilcox.test
 #'
 #' @return A vector or matrix containing ordinal effect sizes
-#'
 #' @noRd
 #'
 effect_ordinal <- function(Data,
@@ -158,7 +156,6 @@ effect_ordinal <- function(Data,
 #'
 #' @return A vector containing the adjusted d-ratio in dependency of
 #' sample size.
-#'
 #' @noRd
 #'
 row_nominal <- function(Data,
@@ -290,7 +287,6 @@ row_nominal <- function(Data,
 #' @importFrom stddiff stddiff.category
 #'
 #' @return A vector or matrix containing nominal effect sizes
-#'
 #' @noRd
 #'
 effect_nominal <- function(Data,

@@ -18,7 +18,7 @@
 #' @importFrom stats mahalanobis
 #' 
 #' @return A matrix of distance for each case of each possible match.
-#'
+#' @noRd
 #'
 distance_estimator <- function(data, means, variance, cores, inp = NULL) {
   cl <- parallel::makeCluster(cores)
@@ -26,6 +26,83 @@ distance_estimator <- function(data, means, variance, cores, inp = NULL) {
   distance_matrix <- foreach::foreach(inp = data, .combine = cbind) %dopar%
     stats::mahalanobis(inp, center = means, cov = variance)
   parallel::stopCluster(cl)
+  return(distance_matrix)
+}
+
+#' distance_estimator MD
+#'
+#' estimates distance in \code{\link{MAGMA}} for Mahalanobis Distance Matching.
+#'
+#' This function is an inner function of \code{\link{MAGMA}}. It estimates the
+#' Mahalanobis distance of all possible matches.
+#'
+#' @param data A matrix containing all possible combinations.
+#' @param variance The variance-covariance matrix of the covariates.
+#' @param cores An integer defining the number of cores used for
+#' parallel computation.
+#' @param rows An integer defining the number of groups
+#' @param weights Possible weights for estimating the Mahalanobis distance.
+#' @param chunk input parameter for parallel distance computation.
+#'
+#' @author Julian Urban
+#'
+#' @import parallel doParallel foreach
+#' 
+#' @return A matrix of distance for each case of each possible match.
+#' @noRd
+#'
+distance_estimator_MD <- function(data, variance, cores, rows, weights = NULL, chunk = NULL) {
+  if(cores > 1) {
+    cl <- parallel::makeCluster(cores)
+    doParallel::registerDoParallel(cl)
+    
+    chunks <- split(seq_len(nrow(data)),
+                    cut(seq_len(nrow(data)),
+                        cores,
+                        labels = FALSE))
+    
+    distance_matrix <- foreach::foreach(chunk = chunks,
+                                        .combine = c) %dopar% {
+                                          x <- sapply(chunk,
+                                                      function(row) {
+                                                        temp <- matrix(data[row, ],
+                                                                       nrow = rows,
+                                                                       byrow = TRUE)
+                                                        means <- colMeans(temp)
+                                                        
+                                                        centered_temp <- sweep(temp, 2L, means)
+                                                        
+                                                        if(is.null(weights)) {
+                                                          weights <- rep(1, length(means))
+                                                        }
+                                                        weight_mat <- diag(weights)
+                                                        
+                                                        mean(sqrt(rowSums(centered_temp %*% weight_mat %*% solve(variance) %*% weight_mat * centered_temp)))
+                                                      })
+                                        }
+    parallel::stopCluster(cl) 
+  } else {
+    distance_matrix <- sapply(c(1:nrow(data)),
+                              function(row) {
+                                temp <- matrix(data[row, ],
+                                               nrow = rows,
+                                               byrow = TRUE)
+                                means <- colMeans(temp)
+                                
+                                centered_temp <- sweep(temp, 2L, means)
+                                
+                                if(is.null(weights)) {
+                                  weights <- rep(1, length(means))
+                                }
+                                weight_mat <- diag(weights)
+                                
+                                mean(sqrt(rowSums(centered_temp %*% weight_mat %*% solve(variance) %*% weight_mat * centered_temp)))
+                                
+                                
+                              })
+  }
+  
+  
   return(distance_matrix)
 }
 
@@ -58,19 +135,27 @@ distance_estimator <- function(data, means, variance, cores, inp = NULL) {
 #' Design) is possible by specifying group as a character vector with a length
 #' of two. In this case, each or the 2 grouping variables can only have two
 #' levels.
-#' @param dist A character specifying the name of your distance
-#' variable in data.
+#' @param dist A character specifying the name of the propensity score
+#' in data.
 #' @param cores An integer defining the number of cores used for
 #' parallel computation.
 #' @param verbose TRUE or FALSE indicating whether matching information should
 #' be printed to the console.
+#' @param covs Only relevant for Mahalanobis distance matching. Specifies the
+#' names of the variables for which Mahalanobis distance matching should be
+#' conducted as a character vector.
+#' @param weights Optional parameter for Mahalanobis distance matching. Should
+#' be a numeric vector with the same length as covs. These weights are used to
+#' estimate a weightes Mahalanobis distance. If not specified, all covariates
+#' are weighted equally.
+#' 
 #'
 #' @author Julian Urban
 #'
 #' @import tidyverse parallel doParallel foreach dplyr tibble tidyselect
 #' @importFrom purrr set_names
 #' @importFrom stats var
-#' @importFrom stats runif
+#' @importFrom stats cov
 #' @importFrom rlang sym
 #' 
 #' @return Your input data frame augmented with matching
@@ -115,7 +200,7 @@ distance_estimator <- function(data, means, variance, cores, inp = NULL) {
 #' head(MAGMA_sim_data_gift_enrich)
 #' }
 #'
-MAGMA <- function(Data, group, dist, cores = 1, verbose = TRUE) {
+MAGMA <- function(Data, group, dist = NULL, cores = 1, verbose = TRUE, covs = NULL, weights = NULL) {
 
   #Check for regular input
   if(!is.data.frame(Data) && !tibble::is_tibble(Data)) {
@@ -125,13 +210,36 @@ MAGMA <- function(Data, group, dist, cores = 1, verbose = TRUE) {
   if(!is.character(group) | length(group) > 2) {
     stop("group needs to be a character of length 1 or a character vector of length 2!")
   }
-
-  if(!is.character(dist) | length(dist) > 2) {
-    stop("dist needs to be a character of length 1 or 2!")
+  
+  if(length(group) == 2) {
+    if(length(table(Data[[group[1]]])) > 2 | length(table(Data[[group[2]]])) > 2 ) {
+      stop("For two factor designs only 2 levels per factor are currently possible!")
+    }
   }
 
+  if((!is.character(dist) | length(dist) > 1) & !is.null(dist)) {
+    stop("dist needs to be a character of length 1!")
+  }
+  
   if(!is.integer(cores) & !is.numeric(cores) | length(cores) > 1) {
     stop("cores needs to be a single integer number")
+  }
+  
+  if(!is.null(covs) & !is.character(covs)) {
+    stop("covs needs to be a character vector!")
+  }
+  
+  if(!is.null(weights) & !is.numeric(weights)) {
+    stop("weights needs to be a numeric vector!")
+  }
+  if(!is.null(weights) & length(weights) != length(covs)) {
+    stop("covs and weights need to have the same length!")
+  }
+  
+  
+  if(is.null(dist)) {
+    Data$dist_dummy <- ifelse(rowSums(is.na(Data[, covs])) == 0, 1, NA)
+    dist <- "dist_dummy"
   }
 
   max_cores <- parallel::detectCores()
@@ -177,24 +285,36 @@ MAGMA <- function(Data, group, dist, cores = 1, verbose = TRUE) {
     warning("Some cases were excluded due to missing values for group or distance variable. Matching proceeds with reduced dataset.")
   }
 
-  if(length(group) == 1) {
-    input <- data.frame(data["ID"],
-                        data[group],
-                        data[dist])
-    colnames(input) <- c("ID", "group", "distance_ps")
-  } else {
-    if(length(dist) == 1) {
+  if(is.null(covs)) {
+    if(length(group) == 1) {
       input <- data.frame(data["ID"],
-                          data["group_long"],
+                          data[group],
                           data[dist])
       colnames(input) <- c("ID", "group", "distance_ps")
     } else {
-      input <- data.frame(data["ID"],
-                          data["group_long"],
-                          data[dist[1]],
-                          data[dist[2]])
-      colnames(input) <- c("ID", "group", "distance_ps_1", "distance_ps_2")
+      if(length(dist) == 1) {
+        input <- data.frame(data["ID"],
+                            data["group_long"],
+                            data[dist])
+        colnames(input) <- c("ID", "group", "distance_ps")
+      } else {
+        input <- data.frame(data["ID"],
+                            data["group_long"],
+                            data[dist[1]],
+                            data[dist[2]])
+        colnames(input) <- c("ID", "group", "distance_ps_1", "distance_ps_2")
+      }
     }
+  } else {
+    if(length(group) == 1) {
+      group_indicator <- group
+    } else {
+      group_indicator <- "group_long"
+    }
+    input <- data.frame(data["ID"],
+                        data[group_indicator],
+                        data[, covs])
+    colnames(input) <- c("ID", "group", covs)
   }
   
   input <- transform(input,
@@ -211,8 +331,14 @@ if(verbose) {
   #######################
   #distance estimation##
   ######################
-  if(length(dist) == 1) {
-    var_ma <- as.numeric(stats::var(input$distance_ps))
+  if(length(dist) == 1 | is.null(dist)) {
+    if(is.null(covs)) {
+      var_ma <- as.numeric(stats::var(input$distance_ps))
+      name_ps <- "distance_ps"
+    } else {
+      var_ma <- stats::cov(input[, covs])
+      name_ps <- covs
+    }
 
 
     group_list <- split.data.frame(input, input$group)
@@ -221,23 +347,33 @@ if(verbose) {
       sapply(FUN = max)
 
     if(length(elements) == 2) {
-      value_matrix <- build_value_matrix(group_list, elements)
+      value_matrix <- build_value_matrix(group_list, elements, name_ps = name_ps)
 
-      means <- rowMeans(value_matrix)
-
-      distance_matrix <- distance_estimator(data = value_matrix,
-                                            means = means,
-                                            variance = var_ma,
-                                            cores = cores)
-
-      distance_mean <- rowMeans(distance_matrix)
+      if(is.null(covs)) {
+        means <- rowMeans(value_matrix)
+        
+        distance_matrix <- distance_estimator(data = value_matrix,
+                                              means = means,
+                                              variance = var_ma,
+                                              cores = cores)
+        
+        distance_mean <- rowMeans(distance_matrix)
+        
+        rm(distance_matrix)
+        rm(value_matrix)
+        rm(means)
+      } else {
+        distance_mean <- distance_estimator_MD(data = value_matrix,
+                                               variance = var_ma,
+                                               cores = cores,
+                                               rows = length(elements),
+                                               weights = weights)
+        rm(value_matrix)
+      }
 
       distance_array <- array(data = distance_mean, dim = elements)
 
       rm(distance_mean)
-      rm(distance_matrix)
-      rm(value_matrix)
-      rm(means)
       gc()
       
       if(verbose) {
@@ -255,23 +391,34 @@ if(verbose) {
     } else if(length(elements) == 3) {
 
       if (prod(elements) < 1.0e+09) {
-        value_matrix <- build_value_matrix(group_list, elements)
+        value_matrix <- build_value_matrix(group_list,
+                                           elements,
+                                           name_ps = name_ps)
 
-        means <- rowMeans(value_matrix)
-
-        distance_matrix <- distance_estimator(data = value_matrix,
-                                              means = means,
-                                              variance = var_ma,
-                                              cores = cores)
-
-        distance_mean <- rowMeans(distance_matrix)
+        if(is.null(covs)) {
+          means <- rowMeans(value_matrix)
+          
+          distance_matrix <- distance_estimator(data = value_matrix,
+                                                means = means,
+                                                variance = var_ma,
+                                                cores = cores)
+          
+          distance_mean <- rowMeans(distance_matrix)
+          rm(distance_matrix)
+          rm(value_matrix)
+          rm(means)
+        } else {
+          distance_mean <- distance_estimator_MD(data = value_matrix,
+                                                 variance = var_ma,
+                                                 cores = cores,
+                                                 rows = length(elements),
+                                                 weights = weights)
+          rm(value_matrix)
+        }
 
         distance_array <- array(data = distance_mean, dim = elements)
 
         rm(distance_mean)
-        rm(distance_matrix)
-        rm(value_matrix)
-        rm(means)
         gc()
 
         if(verbose) {
@@ -296,46 +443,58 @@ if(verbose) {
         number_split_groups <- ceiling(sqrt(prod(elements) / 1.0e+09)) + 1
 
 
-        input$random_group = floor(stats::runif(nrow(input),
-                                                1, number_split_groups))
+        input$random_group = sample(c(1:number_split_groups),
+                                    size = nrow(input),
+                                    replace = TRUE) 
         
         random_list <- split.data.frame(input, input$random_group)
+        
+        random_list <- lapply(seq_along(random_list),
+                              function(i) {
+                                group_list_temp <- split(random_list[[i]], random_list[[i]]$group)
+                                
+                                elements_temp <- sapply(group_list_temp, nrow)
+                                
+                                value_matrix <- build_value_matrix(group_list_temp,
+                                                                   elements_temp,
+                                                                   name_ps = name_ps)
+                                
+                                if (is.null(covs)) {
+                                  means <- rowMeans(value_matrix)
+                                  
+                                  distance_matrix <- distance_estimator(data = value_matrix,
+                                                                        means = means,
+                                                                        variance = var_ma,
+                                                                        cores = cores)
+                                  
+                                  distance_mean <- rowMeans(distance_matrix)
+                                  rm(distance_matrix)
+                                  rm(means)
+                                  
+                                } else {
+                                  
+                                  distance_mean <- distance_estimator_MD(data = value_matrix,
+                                                                         variance = var_ma,
+                                                                         cores = cores,     
+                                                                         rows = length(elements_temp),
+                                                                         weights = weights)
+                                }
+                                rm(value_matrix)
+                                
+                                distance_array <- array(distance_mean, dim = elements_temp)
+                                
+                                rm(distance_mean)
+                                
+                                group_list_temp <- match_iterative(distance_array,
+                                                                   group_list_temp,
+                                                                   elements_temp)
+                                rm(distance_array)
+                                gc()
+                                
+                                do.call(rbind.data.frame, group_list_temp)
+                              })
 
-
-        for(i in 1:length(random_list)) {
-
-          group_list_temp <- random_list[[i]] %>%
-            split.data.frame(f = random_list[[i]]$group)
-
-          elements_temp <- sapply(group_list_temp, nrow)
-
-          value_matrix <- build_value_matrix(group_list_temp, elements_temp)
-
-          means <- rowMeans(value_matrix)
-
-
-          distance_matrix <- distance_estimator(data = value_matrix,
-                                                means = means,
-                                                variance = var_ma,
-                                                cores = cores)
-          rm(value_matrix)
-          rm(means)
-          gc()
-
-          distance_mean <- rowMeans(distance_matrix)
-          distance_array <- array(data = distance_mean, dim = elements_temp)
-
-          rm(distance_matrix)
-          rm(distance_mean)
-          gc()
-
-          group_list_temp <- match_iterative(distance_array, group_list_temp, elements_temp)
-
-          rm(distance_array)
-          gc()
-
-          random_list[[i]] <- do.call(rbind.data.frame, group_list_temp)
-        }
+        
         data_temp <- do.call(rbind.data.frame, random_list)
         data_temp <- data_temp[order(data_temp$step, data_temp$distance),]
         data_temp$step <- ceiling(c(1:nrow(input))/3)
@@ -351,25 +510,30 @@ if(verbose) {
 
       if (prod(elements) < 1.0e+09) {
 
-        value_matrix <- build_value_matrix(group_list, elements)
-
-        means <- rowMeans(value_matrix)
-
-        distance_matrix <- distance_estimator(data = value_matrix,
-                                              means = means,
-                                              variance = var_ma,
-                                              cores = cores)
-
-        distance_mean <- rowMeans(distance_matrix)
-
+        if(is.null(covs)) {
+          means <- rowMeans(value_matrix)
+          
+          distance_matrix <- distance_estimator(data = value_matrix,
+                                                means = means,
+                                                variance = var_ma,
+                                                cores = cores)
+          
+          distance_mean <- rowMeans(distance_matrix)
+          rm(distance_matrix)
+          rm(means)
+        } else {
+          distance_mean <- distance_estimator_MD(data = value_matrix,
+                                                 variance = var_ma,
+                                                 cores = cores,
+                                                 rows = length(elements),
+                                                 weights = weights)
+        }
+        
         distance_array <- array(data = distance_mean, dim = elements)
-
+        
         rm(distance_mean)
-        rm(distance_matrix)
         rm(value_matrix)
-        rm(means)
         gc()
-
         if(verbose) {
         cat("\n", "Distance computation finished. Starting matching")
         }
@@ -390,60 +554,69 @@ if(verbose) {
         }
         
         number_split_groups <- ceiling(sqrt(prod(elements) / 1.0e+09)) + 1
-        if(number_split_groups == 1) {
-          number_split_groups <- 2
-        }
-
-
-        input$random_group = floor(stats::runif(nrow(input),
-                                                1, number_split_groups))
+        
+        
+        input$random_group = sample(c(1:number_split_groups),
+                                    size = nrow(input),
+                                    replace = TRUE) 
+        
         random_list <- split.data.frame(input, input$random_group)
-
-
-
-        for(i in 1:length(random_list)) {
-
-          group_list_temp <- random_list[[i]] %>%
-            split.data.frame(f = random_list[[i]]$group)
-
-          elements_temp <- sapply(group_list_temp, nrow)
-
-          value_matrix <- build_value_matrix(group_list_temp, elements_temp)
-
-          means <- rowMeans(value_matrix)
-
-
-          distance_matrix <- distance_estimator(data = value_matrix,
-                                                means = means,
-                                                variance = var_ma,
-                                                cores = cores)
-          rm(value_matrix)
-          rm(means)
-          gc()
-
-          distance_mean <- rowMeans(distance_matrix)
-          distance_array <- array(data = distance_mean, dim = elements_temp)
-
-          rm(distance_matrix)
-          rm(distance_mean)
-          gc()
-
-          group_list_temp <- match_iterative(distance_array, group_list_temp, elements_temp)
-
-          rm(distance_array)
-          gc()
-
-          random_list[[i]] <- do.call(rbind.data.frame, group_list_temp)
-        }
+        
+        random_list <- lapply(seq_along(random_list),
+                              function(i) {
+                                group_list_temp <- split(random_list[[i]], random_list[[i]]$group)
+                                
+                                elements_temp <- sapply(group_list_temp, nrow)
+                                
+                                value_matrix <- build_value_matrix(group_list_temp,
+                                                                   elements_temp,
+                                                                   name_ps = name_ps)
+                                
+                                if (is.null(covs)) {
+                                  means <- rowMeans(value_matrix)
+                                  
+                                  distance_matrix <- distance_estimator(data = value_matrix,
+                                                                        means = means,
+                                                                        variance = var_ma,
+                                                                        cores = cores)
+                                  
+                                  distance_mean <- rowMeans(distance_matrix)
+                                  rm(distance_matrix)
+                                  rm(means)
+                                  
+                                } else {
+                                  
+                                  distance_mean <- distance_estimator_MD(data = value_matrix,
+                                                                         variance = var_ma,
+                                                                         cores = cores,     
+                                                                         rows = length(elements_temp),
+                                                                         weights = weights)
+                                }
+                                rm(value_matrix)
+                                
+                                distance_array <- array(distance_mean, dim = elements_temp)
+                                
+                                rm(distance_mean)
+                                
+                                group_list_temp <- match_iterative(distance_array,
+                                                                   group_list_temp,
+                                                                   elements_temp)
+                                rm(distance_array)
+                                gc()
+                                
+                                do.call(rbind.data.frame, group_list_temp)
+                              })
+        
+        
         data_temp <- do.call(rbind.data.frame, random_list)
         data_temp <- data_temp[order(data_temp$step, data_temp$distance),]
-        data_temp$step <- ceiling(c(1:nrow(input))/4)
+        data_temp$step <- ceiling(c(1:nrow(input))/3)
         data_temp <- data_temp[!is.na(data_temp$weight), c("ID", "step", "weight", "distance")] 
         
         data <- merge(data,
                       data_temp,
                       by = "ID",
-                      all.x = T)
+                      all.x = TRUE)
       }
     } else {
       stop("Specify a grouping variable that distinguishes 2, 3, or 4 groups or represent a 2x2 Design!")
@@ -464,7 +637,9 @@ if(verbose) {
 
     if (prod(elements) < 1.0e+09) {
 
-      value_matrix <- build_value_matrix(group_list, elements)
+      value_matrix <- build_value_matrix(group_list,
+                                         elements,
+                                         name_ps = name_ps)
 
       means <- rowMeans(value_matrix)
 
@@ -473,7 +648,9 @@ if(verbose) {
                                               variance = var_ma[1],
                                               cores = cores)
 
-      value_matrix <- build_value_matrix(group_list, elements)
+      value_matrix <- build_value_matrix(group_list,
+                                         elements,
+                                         name_ps = name_ps)
 
       means <- rowMeans(value_matrix)
 
@@ -520,8 +697,10 @@ if(verbose) {
       }
 
 
-      input <- input$random_group <- floor(stats::runif(nrow(input),
-                                                        1, number_split_groups))
+      input$random_group <- sample(c(1:number_split_groups),
+                                   size = nrow(input),
+                                   replace = TRUE) 
+
       random_list <- split.data.frame(input, input$random_group)
 
       for(i in 1:length(random_list)) {
@@ -582,6 +761,9 @@ if(verbose) {
                     all.x = TRUE)
       if(verbose) {
       cat("\n", "Matching complete!")
+      }
+      if(is.null(dist)) {
+        data$dist_dummy <- NULL
       }
       return(data)
     }

@@ -266,7 +266,6 @@ if(!is.null(covariates_nominal)) {
 #' @importFrom rlang sym
 #'
 #' @return A vector of pairwise Cohen'ds.
-#'
 #' @noRd
 #'
 cohen_d <- function(Data, index_1, index_2) {

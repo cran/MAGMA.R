@@ -83,7 +83,8 @@ Balance_100_effects
 ## ----Plots_standard_2_group_matching, fig.height = 5, fig.width = 7.5---------
 # Plotting balance trend over sample size
 Plot_MAGMA(Balance = Balance_gifted,
-           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio"))
+           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio"),
+           print = FALSE)
 
 ## ----Table_standard_2_group_matching------------------------------------------
 Table_MAGMA(Balance = Balance_gifted,
@@ -94,8 +95,6 @@ Table_MAGMA(Balance = Balance_gifted,
 descs_gifted_post <- MAGMA_desc(Data = MAGMA_sim_data_gifted,
                                 group = "gifted_support",
                                 covariates = covariates_gifted,
-                                covariates_ordinal = "teacher_ability_rating",
-                               covariates_nominal = "enrichment",
                                 step_num = 100,
                                 step_var = "step",
                                 filename = "stats_gifted_post.docx")
@@ -135,7 +134,8 @@ Balance_100_effects_exact
 
 # Plotting trend over increasing sample size
 Plot_MAGMA(Balance = Balance_gifted_exact,
-           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio")) 
+           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio"),
+           print = FALSE) 
 
 # Creating table
 Table_MAGMA(Balance = Balance_gifted_exact,
@@ -193,19 +193,19 @@ Density_overlap(Data = MAGMA_sim_data,
                 group_name = "Teacher Rated Ability")
 
 ## ----standard_3_group_matching, eval = FALSE----------------------------------
-#  MAGMA_sim_data_tar <- MAGMA(Data = MAGMA_sim_data,
-#                              group = "teacher_ability_rating",
-#                              dist = "ps_tar",
-#                              cores = 2)
+# MAGMA_sim_data_tar <- MAGMA(Data = MAGMA_sim_data,
+#                             group = "teacher_ability_rating",
+#                             dist = "ps_tar",
+#                             cores = 2)
 
 ## ----standard_3_group_matching_str--------------------------------------------
 str(MAGMA_sim_data_tar)
 
 ## ----Balance_3_group_matching, eval = FALSE-----------------------------------
-#  Balance_tar <- Balance_MAGMA(Data = MAGMA_sim_data_tar,
-#                               group = "teacher_ability_rating",
-#                               covariates = covariates_tar,
-#                               step = "step")
+# Balance_tar <- Balance_MAGMA(Data = MAGMA_sim_data_tar,
+#                              group = "teacher_ability_rating",
+#                              covariates = covariates_tar,
+#                              step = "step")
 
 ## ----Balance_3_group_matching_results, fig.height = 5, fig.width = 7.5--------
 # Balance criteria for 100 cases per group
@@ -222,7 +222,8 @@ Balance_100_tar_effects
 
 # Plotting trend over increasing sample size
 Plot_MAGMA(Balance = Balance_tar,
-           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio")) 
+           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio"),
+           print = FALSE) 
 
 # Creating table
 Table_MAGMA(Balance = Balance_tar,
@@ -247,20 +248,20 @@ descs_tar_post %>%
                        "d BA-A", "d BA-AA", "d A-AA"))
 
 ## ----exact_3_group_matching, eval = FALSE-------------------------------------
-#  MAGMA_sim_data_tar_exact <- MAGMA_exact(Data = MAGMA_sim_data,
-#                                          group = "teacher_ability_rating",
-#                                          dist = "ps_tar",
-#                                          exact = "gender",
-#                                          cores = 2)
+# MAGMA_sim_data_tar_exact <- MAGMA_exact(Data = MAGMA_sim_data,
+#                                         group = "teacher_ability_rating",
+#                                         dist = "ps_tar",
+#                                         exact = "gender",
+#                                         cores = 2)
 
 ## ----exact_3_group_matching_str-----------------------------------------------
 str(MAGMA_sim_data_tar_exact)
 
 ## ----exact_3_group_matching_balance, eval = FALSE-----------------------------
-#  Balance_tar_exact <- Balance_MAGMA(Data = MAGMA_sim_data_tar_exact,
-#                                     group = "teacher_ability_rating",
-#                                     covariates = covariates_tar,
-#                                     step = "step")
+# Balance_tar_exact <- Balance_MAGMA(Data = MAGMA_sim_data_tar_exact,
+#                                    group = "teacher_ability_rating",
+#                                    covariates = covariates_tar,
+#                                    step = "step")
 
 ## ----exact_3_group_matching_results, fig.height = 5, fig.width = 7.5----------
 # Balance criteria for 100 cases per group
@@ -277,7 +278,8 @@ Balance_100_tar_effects_exact
 
 # Plotting trend over increasing sample size
 Plot_MAGMA(Balance = Balance_tar_exact,
-           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio")) #Could be omitted
+           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio"),
+           print = FALSE) 
 
 # Creating table
 Table_MAGMA(Balance = Balance_tar_exact,
@@ -342,19 +344,19 @@ Density_overlap(Data = MAGMA_sim_data,
                 group_name = "Gifted Support & Enrichment")
 
 ## ----standard_2x2_group_matching, eval = FALSE--------------------------------
-#  MAGMA_sim_data_2x2 <- MAGMA(Data = MAGMA_sim_data,
-#                              group = c("gifted_support", "enrichment"),
-#                              dist = "ps_2x2",
-#                              cores = 2)
+# MAGMA_sim_data_2x2 <- MAGMA(Data = MAGMA_sim_data,
+#                             group = c("gifted_support", "enrichment"),
+#                             dist = "ps_2x2",
+#                             cores = 2)
 
 ## ----standard_2x2_group_matching_str------------------------------------------
 str(MAGMA_sim_data_2x2)
 
 ## ----Balance_2x2_group_matching, eval = FALSE---------------------------------
-#  Balance_2x2 <- Balance_MAGMA(Data = MAGMA_sim_data_2x2,
-#                               group = c("gifted_support", "enrichment"),
-#                               covariates = covariates_2x2,
-#                               step = "step")
+# Balance_2x2 <- Balance_MAGMA(Data = MAGMA_sim_data_2x2,
+#                              group = c("gifted_support", "enrichment"),
+#                              covariates = covariates_2x2,
+#                              step = "step")
 
 ## ----Balance_2x2_group_matching_results, fig.height = 5, fig.width = 7.5------
 
@@ -372,7 +374,8 @@ Balance_100_2x2_effects
 
 # Plotting trend over increasing sample size
 Plot_MAGMA(Balance = Balance_2x2,
-           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio")) 
+           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio"),
+           print = FALSE) 
 
 # Creating table
 Table_MAGMA(Balance = Balance_2x2,
@@ -399,22 +402,22 @@ descs_2x2_post %>%
 
 
 ## ----exact_2x2_group_matching, eval = FALSE-----------------------------------
-#  MAGMA_sim_data_2x2_exact <- MAGMA_exact(Data = MAGMA_sim_data,
-#                                          group = c("gifted_support", "enrichment"),
-#                                          dist = "ps_2x2",
-#                                          exact = "teacher_ability_rating",
-#                                          cores = 2)
+# MAGMA_sim_data_2x2_exact <- MAGMA_exact(Data = MAGMA_sim_data,
+#                                         group = c("gifted_support", "enrichment"),
+#                                         dist = "ps_2x2",
+#                                         exact = "teacher_ability_rating",
+#                                         cores = 2)
 
 ## ----exact_2x2_group_matching_str---------------------------------------------
 str(MAGMA_sim_data_2x2_exact)
 
 
 ## ----exact_2x2_group_matching_balance, eval = FALSE---------------------------
-#  # Estimating Balance
-#  Balance_2x2_exact <- Balance_MAGMA(Data = MAGMA_sim_data_2x2_exact,
-#                                     group = c("gifted_support", "enrichment"),
-#                                     covariates = covariates_2x2,
-#                                     step = "step") #Not necessary to define here
+# # Estimating Balance
+# Balance_2x2_exact <- Balance_MAGMA(Data = MAGMA_sim_data_2x2_exact,
+#                                    group = c("gifted_support", "enrichment"),
+#                                    covariates = covariates_2x2,
+#                                    step = "step") #Not necessary to define here
 
 ## ----exact_2x2_group_matching_results, fig.height = 5, fig.width = 7.5--------
 # Balance criteria for 100 cases per group
@@ -431,7 +434,8 @@ Balance_100_2x2_effects_exact
 
 # Plotting trend over increasing sample size
 Plot_MAGMA(Balance = Balance_2x2_exact,
-           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio")) #Could be omitted
+           criterion = c("Pillai", "d_ratio", "mean_g", "Adj_d_ratio"),
+           print = FALSE) 
 
 # Creating table
 Table_MAGMA(Balance = Balance_2x2_exact,
